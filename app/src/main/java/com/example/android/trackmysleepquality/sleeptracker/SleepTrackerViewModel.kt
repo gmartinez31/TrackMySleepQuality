@@ -1,19 +1,3 @@
-/*
- * Copyright 2019, The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package com.example.android.trackmysleepquality.sleeptracker
 
 import android.app.Application
@@ -25,6 +9,16 @@ import kotlinx.coroutines.*
 
 /**
  * ViewModel for SleepTrackerFragment.
+ *
+ * Essentially what's happening here is the following:
+ *
+ *      1) Launch a coroutine that runs on the UI thread - initializeTonight()
+ *      2) Calls a suspend function to do the long-running work - getTonightFromDB()
+ *      3) Context shifts from UI to I/O context so work runs on thread pool optimized for it
+ *      4) Actual db call is made - database.getTonight()
+ *
+ * See below for a template of sorts.
+ *
  */
 class SleepTrackerViewModel(
         val database: SleepDatabaseDao,
@@ -39,6 +33,15 @@ class SleepTrackerViewModel(
         initializeTonight()
     }
 
+    fun onStartTracking() {
+        // we launch a coroutine in this scope b/c we need result to continue and update the UI
+        uiScope.launch {
+            val newNight = SleepNight()
+            insert(newNight)
+            tonight.value = getTonightFromDB()
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         viewModelJob.cancel()
@@ -47,6 +50,13 @@ class SleepTrackerViewModel(
     private fun initializeTonight() {
         uiScope.launch {
             tonight.value = getTonightFromDB()
+        }
+    }
+
+    //DB funcs
+    private suspend fun insert(sleepNight: SleepNight) {
+        withContext(Dispatchers.IO) {
+            database.insert(night = sleepNight)
         }
     }
 
@@ -61,4 +71,19 @@ class SleepTrackerViewModel(
         }
     }
 }
+
+/*
+ * NOT part of this class. Template.
+ * fun someWorkNeedsToBeDone {
+    uiScope.launch {
+        suspendFunction()
+      }
+   }
+
+    suspend fun suspendFunction() {
+       withContext(Dispatchers.IO) {
+           longrunningWork()
+       }
+    }
+ */
 
