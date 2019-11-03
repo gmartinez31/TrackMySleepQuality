@@ -18,7 +18,10 @@ package com.example.android.trackmysleepquality.sleeptracker
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.MutableLiveData
 import com.example.android.trackmysleepquality.database.SleepDatabaseDao
+import com.example.android.trackmysleepquality.database.SleepNight
+import kotlinx.coroutines.*
 
 /**
  * ViewModel for SleepTrackerFragment.
@@ -26,5 +29,36 @@ import com.example.android.trackmysleepquality.database.SleepDatabaseDao
 class SleepTrackerViewModel(
         val database: SleepDatabaseDao,
         application: Application) : AndroidViewModel(application) {
+
+    // will be the job that cancels all other coroutines started by the VM when it's no longer used
+    private var viewModelJob = Job()
+    private val uiScope = CoroutineScope(Dispatchers.Main + viewModelJob)
+    private var tonight = MutableLiveData<SleepNight?>()
+
+    init {
+        initializeTonight()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        viewModelJob.cancel()
+    }
+
+    private fun initializeTonight() {
+        uiScope.launch {
+            tonight.value = getTonightFromDB()
+        }
+    }
+
+    private suspend fun getTonightFromDB(): SleepNight? {
+        // runs in Dispatchers.IO context and not the UI thread
+        return withContext(Dispatchers.IO) {
+            var night = database.getTonight()
+            if (night?.endTime != night?.startTime) {
+                night = null
+            }
+            night
+        }
+    }
 }
 
