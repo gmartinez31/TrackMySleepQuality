@@ -48,6 +48,14 @@ class SleepTrackerViewModel(
         }
     }
 
+    fun onStopTracking() {
+        uiScope.launch {
+            val oldNight = tonight.value ?: return@launch
+            oldNight.endTime = System.currentTimeMillis()
+            update(oldNight)
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         viewModelJob.cancel()
@@ -74,6 +82,12 @@ class SleepTrackerViewModel(
                 night = null
             }
             night
+        }
+    }
+
+    private suspend fun update(sleepNight: SleepNight) {
+        withContext(Dispatchers.IO) {
+            database.update(night = sleepNight)
         }
     }
 }
