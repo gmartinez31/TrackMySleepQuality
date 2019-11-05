@@ -33,6 +33,22 @@ class SleepTrackerViewModel(
     private var tonight = MutableLiveData<SleepNight?>()
     private val nights = database.getAllNights()
 
+    // only enabled if tonight is null
+    val startButtonVisible = Transformations.map(tonight) {
+        it == null
+    }
+
+    // only enabled if tonight is not null
+    val stopButtonVisible = Transformations.map(tonight) {
+        it != null
+    }
+
+    // only enabled if nights are in the DB and present
+    val clearButtonVisible = Transformations.map(nights) {
+        it?.isNotEmpty()
+    }
+
+
     private val _navigateToSleepQualityFragment = MutableLiveData<SleepNight>()
     val navigateToSleepQualityFragment: LiveData<SleepNight>
         get() = _navigateToSleepQualityFragment
